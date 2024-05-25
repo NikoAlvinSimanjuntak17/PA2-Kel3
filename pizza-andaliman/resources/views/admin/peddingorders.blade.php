@@ -15,8 +15,8 @@
 <div class="container-fluid p-5">
     <h4 class="fw-bold py-3 mb-4"><span class="text fw-light">Pages / </span> Pedding Order</h4>
     <a class="btn btn-success export-btn" href="{{ route('export.excel.order') }}">
-        <i class="fas fa-file-excel"></i> Export to Excel
-    </a>
+        <i class="fas fa-file-excel"></i> Export Data Pesanan
+    </a><br><br>
     <div class="card mb-5 bg-secondary">
         <div class="table-responsive text-nowrap container pb-4">
             <h5 class="card-header" style="color: rgb(180, 2, 2);">LIST ORDER</h5>

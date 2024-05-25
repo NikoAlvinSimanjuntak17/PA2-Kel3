@@ -41,10 +41,13 @@ class OrderController extends Controller
 
         return view('admin.peddingorders',compact('pending_orders','pending_selesai','admin'));
 }
+
 public function exportExcel()
 {
-    // Query data produk dari database
-    $orders = Order::where('status', 'selesai')->get();
+    // Query data produk dari database untuk tahun sekarang
+    $orders = Order::where('status', 'selesai')
+                   ->whereYear('created_at', now()->year)
+                   ->get();
 
     // Buat spreadsheet baru
     $spreadsheet = new Spreadsheet();
@@ -72,34 +75,10 @@ public function exportExcel()
     $sheet->mergeCells('A2:F2');
     $sheet->mergeCells('A3:F3');
 
-    // Header kolom
-    $sheet->setCellValue('A4', 'Nomor Pesanan');
-    $sheet->setCellValue('B4', 'Nama Pemesan');
-    $sheet->setCellValue('C4', 'Nama Produk');
-    $sheet->setCellValue('D4', 'Kuantitas');
-    $sheet->setCellValue('E4', 'Total Pesanan');
-    $sheet->setCellValue('F4', 'Tanggal Pesanan');
-
-    // Atur lebar kolom
-    $sheet->getColumnDimension('A')->setWidth(20);
-    $sheet->getColumnDimension('B')->setWidth(26);
-    $sheet->getColumnDimension('C')->setWidth(30);
-    $sheet->getColumnDimension('D')->setWidth(15);
-    $sheet->getColumnDimension('E')->setWidth(22);
-    $sheet->getColumnDimension('F')->setWidth(22);
-
-    // Atur gaya header kolom
-    $headerStyle = [
-        'font' => [
-            'bold' => true,
-            'size' => 14, // Font size larger
-        ],
-        'alignment' => [
-            'horizontal' => Alignment::HORIZONTAL_CENTER,
-            'vertical' => Alignment::VERTICAL_CENTER,
-        ],
-    ];
-    $sheet->getStyle('A4:F4')->applyFromArray($headerStyle);
+    // Mengelompokkan pesanan berdasarkan bulan
+    $ordersByMonth = $orders->groupBy(function($order) {
+        return $order->created_at->format('m'); // Format bulan dengan dua digit
+    });
 
     // Center alignment style
     $centerStyle = [
@@ -109,70 +88,113 @@ public function exportExcel()
         ],
     ];
 
-    // Data produk
-    $rowNumber = 5; // Start from row 5
-    foreach ($orders as $order) {
-        $productNames = json_decode($order->product_nama, true);
-        $quantities = json_decode($order->quantity, true);
-        $totalPrices = json_decode($order->totalprice, true);
-        $totalPembelian = array_sum($totalPrices);
+    $rowNumber = 4; // Start from row 4
 
-        $numProducts = count($productNames);
-        $startRow = $rowNumber;
-        for ($i = 0; $i < $numProducts; $i++) {
-            // Set product-specific data
-            $sheet->setCellValue('C' . $rowNumber, $productNames[$i]);
-            $sheet->setCellValue('D' . $rowNumber, $quantities[$i]);
-            $sheet->getStyle('D' . $rowNumber)->applyFromArray($centerStyle);
-            $rowNumber++;
+    foreach ($ordersByMonth as $month => $orders) {
+        // Tambahkan header bulan
+        $monthName = \Carbon\Carbon::create()->month($month)->format('F'); // Nama bulan
+        $sheet->setCellValue('A' . $rowNumber, 'Bulan: ' . $monthName);
+        $sheet->mergeCells('A' . $rowNumber . ':F' . $rowNumber);
+        $sheet->getStyle('A' . $rowNumber . ':F' . $rowNumber)->applyFromArray([
+            'font' => ['bold' => true, 'size' => 14],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
+        ]);
+        $rowNumber++;
+
+        // Header kolom
+        $sheet->setCellValue('A' . $rowNumber, 'Nomor Pesanan');
+        $sheet->setCellValue('B' . $rowNumber, 'Nama Pemesan');
+        $sheet->setCellValue('C' . $rowNumber, 'Nama Produk');
+        $sheet->setCellValue('D' . $rowNumber, 'Kuantitas');
+        $sheet->setCellValue('E' . $rowNumber, 'Total Pesanan');
+        $sheet->setCellValue('F' . $rowNumber, 'Tanggal Pesanan');
+
+        // Atur lebar kolom
+        $sheet->getColumnDimension('A')->setWidth(20);
+        $sheet->getColumnDimension('B')->setWidth(26);
+        $sheet->getColumnDimension('C')->setWidth(30);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(22);
+        $sheet->getColumnDimension('F')->setWidth(22);
+
+        // Atur gaya header kolom
+        $headerStyle = [
+            'font' => ['bold' => true, 'size' => 14],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        $sheet->getStyle('A' . $rowNumber . ':F' . $rowNumber)->applyFromArray($headerStyle);
+        $rowNumber++;
+
+        // Data produk
+        foreach ($orders as $order) {
+            $productNames = json_decode($order->product_nama, true);
+            $quantities = json_decode($order->quantity, true);
+            $totalPrices = json_decode($order->totalprice, true);
+            $totalPembelian = array_sum($totalPrices);
+
+            $numProducts = count($productNames);
+            $startRow = $rowNumber;
+            for ($i = 0; $i < $numProducts; $i++) {
+                // Set product-specific data
+                $sheet->setCellValue('C' . $rowNumber, $productNames[$i]);
+                $sheet->setCellValue('D' . $rowNumber, $quantities[$i]);
+                $sheet->getStyle('D' . $rowNumber)->applyFromArray($centerStyle);
+                $rowNumber++;
+            }
+            $endRow = $rowNumber - 1;
+
+            // Merge cells and set order-specific data
+            $sheet->mergeCells('A' . $startRow . ':A' . $endRow);
+            $sheet->setCellValue('A' . $startRow, '#' . $order->id);
+            $sheet->getStyle('A' . $startRow . ':A' . $endRow)->applyFromArray($centerStyle);
+
+            $sheet->mergeCells('B' . $startRow . ':B' . $endRow);
+            $sheet->setCellValue('B' . $startRow, $order->nama);
+            $sheet->getStyle('B' . $startRow . ':B' . $endRow)->applyFromArray($centerStyle);
+
+            $sheet->mergeCells('E' . $startRow . ':E' . $endRow);
+            $sheet->setCellValue('E' . $startRow, $totalPembelian);
+            $sheet->getStyle('E' . $startRow . ':E' . $endRow)->applyFromArray($centerStyle);
+            $sheet->getStyle('E' . $startRow . ':E' . $endRow)->getNumberFormat()->setFormatCode('"Rp "#,##0');
+
+            $sheet->mergeCells('F' . $startRow . ':F' . $endRow);
+            $sheet->setCellValue('F' . $startRow, $order->created_at->format('d-m-Y H:i'));
+            $sheet->getStyle('F' . $startRow . ':F' . $endRow)->applyFromArray($centerStyle);
         }
-        $endRow = $rowNumber - 1;
 
-        // Merge cells and set order-specific data
-        $sheet->mergeCells('A' . $startRow . ':A' . $endRow);
-        $sheet->setCellValue('A' . $startRow, '#' . $order->id);
-        $sheet->getStyle('A' . $startRow . ':A' . $endRow)->applyFromArray($centerStyle);
+        // Center align all cells except column C
+        $sheet->getStyle('A' . ($rowNumber - $numProducts) . ':A' . ($rowNumber - 1))->applyFromArray($centerStyle);
+        $sheet->getStyle('B' . ($rowNumber - $numProducts) . ':B' . ($rowNumber - 1))->applyFromArray($centerStyle);
+        $sheet->getStyle('D' . ($rowNumber - $numProducts) . ':D' . ($rowNumber - 1))->applyFromArray($centerStyle);
+        $sheet->getStyle('E' . ($rowNumber - $numProducts) . ':E' . ($rowNumber - 1))->applyFromArray($centerStyle);
+        $sheet->getStyle('F' . ($rowNumber - $numProducts) . ':F' . ($rowNumber - 1))->applyFromArray($centerStyle);
 
-        $sheet->mergeCells('B' . $startRow . ':B' . $endRow);
-        $sheet->setCellValue('B' . $startRow, $order->nama);
-        $sheet->getStyle('B' . $startRow . ':B' . $endRow)->applyFromArray($centerStyle);
+        // Tambahkan total penjualan per bulan di bawah tabel bulan
+        $totalRow = $rowNumber + 1;
+        $sheet->mergeCells('A' . $totalRow . ':D' . $totalRow);
+        $sheet->setCellValue('A' . $totalRow, 'Total Penjualan Bulan ' . $monthName . ':');
+        $sheet->setCellValue('E' . $totalRow, '=SUM(E' . ($rowNumber - $numProducts) . ':E' . ($rowNumber - 1) . ')');
+        $sheet->getStyle('E' . $totalRow)->getNumberFormat()->setFormatCode('"Rp "#,##0');
 
-        $sheet->mergeCells('E' . $startRow . ':E' . $endRow);
-        $sheet->setCellValue('E' . $startRow, $totalPembelian);
-        $sheet->getStyle('E' . $startRow . ':E' . $endRow)->applyFromArray($centerStyle);
-        $sheet->getStyle('E' . $startRow . ':E' . $endRow)->getNumberFormat()->setFormatCode('"Rp "#,##0');
+        // Gaya untuk total penjualan per bulan
+        $totalStyle = [
+            'font' => [
+                'bold' => true,
+                'size' => 13,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        $sheet->getStyle('A' . $totalRow . ':E' . $totalRow)->applyFromArray($totalStyle);
 
-        $sheet->mergeCells('F' . $startRow . ':F' . $endRow);
-        $sheet->setCellValue('F' . $startRow, $order->created_at->format('d-m-Y H:i'));
-        $sheet->getStyle('F' . $startRow . ':F' . $endRow)->applyFromArray($centerStyle);
+        // Tambahkan space setelah total penjualan per bulan
+        $rowNumber = $totalRow + 4;
     }
-
-    // Center align all cells except column C
-    $sheet->getStyle('A5:A' . ($rowNumber - 1))->applyFromArray($centerStyle);
-    $sheet->getStyle('B5:B' . ($rowNumber - 1))->applyFromArray($centerStyle);
-    $sheet->getStyle('D5:D' . ($rowNumber - 1))->applyFromArray($centerStyle);
-    $sheet->getStyle('E5:E' . ($rowNumber - 1))->applyFromArray($centerStyle);
-    $sheet->getStyle('F5:F' . ($rowNumber - 1))->applyFromArray($centerStyle);
-
-    // Tambahkan total penjualan di bawah tabel
-    $totalRow = $rowNumber + 1;
-    $sheet->mergeCells('A' . $totalRow . ':D' . $totalRow);
-    $sheet->setCellValue('A' . $totalRow, 'Total Penjualan:');
-    $sheet->setCellValue('E' . $totalRow, '=SUM(E5:E' . ($rowNumber - 1) . ')');
-    $sheet->getStyle('E' . $totalRow)->getNumberFormat()->setFormatCode('"Rp "#,##0');
-
-    // Gaya untuk total penjualan
-    $totalStyle = [
-        'font' => [
-            'bold' => true,
-            'size' => 13,
-        ],
-        'alignment' => [
-            'horizontal' => Alignment::HORIZONTAL_CENTER,
-            'vertical' => Alignment::VERTICAL_CENTER,
-        ],
-    ];
-    $sheet->getStyle('A' . $totalRow . ':E' . $totalRow)->applyFromArray($totalStyle);
 
     // Buat writer untuk menulis spreadsheet ke file output
     $writer = new Xlsx($spreadsheet);
@@ -186,6 +208,7 @@ public function exportExcel()
     $writer->save('php://output');
     exit;
 }
+
 
     public function detail($id){
         $pedding = Order::findOrFail($id);
