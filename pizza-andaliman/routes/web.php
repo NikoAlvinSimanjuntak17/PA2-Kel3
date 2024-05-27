@@ -128,7 +128,7 @@ Route::middleware(['auth','role:admin'])->group(function(){
         Route::get('/admin/edit-product/{id}','EditProduct')->name('editproduct');
         Route::post('/admin/update-product','UpdateProduct')->name('updateproduct');
         Route::get('admin/delete-product/{id}','DeleteProduct')->name('deleteproduct');
-        Route::get('/export-excel',  'exportExcel')->name('export.excel');
+        Route::get('admin/export-excel',  'exportExcel')->name('export.excel');
     });
     Route::controller(OrderController::class)->group(function(){
         Route::get('/admin/pending-order','index')->name('pendingorder');

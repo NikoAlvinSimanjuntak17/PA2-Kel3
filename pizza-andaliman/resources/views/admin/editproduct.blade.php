@@ -40,12 +40,7 @@
                 <input type="number" class="form-control" id="quantity" name="quantity" value="{{$product->quantity}}"/>
             </div>
           </div>
-          <div class="row mb-3">
-            <label class="col-sm-2 col-form-label" for="basic-default-name">Tipe Produk</label>
-            <div class="col-sm-10">
-                <input type="text" class="form-control" id="quantity" name="tipe" value="{{$product->tipe}}"/>
-            </div>
-          </div>
+
           <div class="row mb-3">
             <label class="col-sm-2 col-form-label" for="basic-default-name">Deskripsi Produk</label>
             <div class="col-sm-10">

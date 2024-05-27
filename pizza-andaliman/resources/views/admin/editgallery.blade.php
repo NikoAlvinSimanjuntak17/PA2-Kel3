@@ -19,7 +19,7 @@
                             </ul>
                         </div>
                     @endif
-                    <form action="{{ route('updategallery', $gallery['id']) }}" method="POST" enctype="multipart/form-data">
+                    <form action="{{ route('admin.gallery.update', $gallery['id']) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         <div class="row mb-3">
@@ -32,16 +32,9 @@
                             </div>
                         </div>
                         <div class="row mb-3">
-                            <label class="col-sm-2 col-form-label" for="basic-default-name">Description</label>
-                            <div class="col-sm-10">
-                                <textarea class="form-control" id="description" name="description"
-                                    rows="3">{{ $gallery['description'] }}</textarea>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
                             <label class="col-sm-2 col-form-label" for="basic-default-name">Current Image</label>
                             <div class="col-sm-10">
-                                <img src="{{ $gallery['image'] }}" style="height:100px; width:200px;" alt="">
+                                <img src="{{ asset('images/'.$gallery->image) }}" style="height:100px; width:200px;" alt="">
                             </div>
                         </div>
                         <div class="row mb-3">

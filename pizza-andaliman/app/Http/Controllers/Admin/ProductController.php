@@ -191,7 +191,6 @@ class ProductController extends Controller
             'product_name' => $request->product_name,
             'product_deskripsi' => $request->product_deskripsi,
             'price' => $request->price,
-            'tipe' => $request->tipe,
             'quantity' => $request->quantity,
             'product_category_name' => $category_name,
             'product_category_id' => $request->product_category_id,
